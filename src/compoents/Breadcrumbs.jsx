@@ -15,6 +15,7 @@ const Breadcrumbs = ({ items }) => {
           {item.path ? (
             <Link
               to={item.path}
+              state={item.state}
               className=" no-underline hover:text-[#18636F] hover:underline text-gray-600 font-light"
             >
               {item.label}

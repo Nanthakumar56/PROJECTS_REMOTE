@@ -16,6 +16,8 @@ import CustomDropdown from "./CustomDropdown";
 import { FaRegDotCircle } from "react-icons/fa";
 import { FaArrowUp, FaArrowDown } from "react-icons/fa6";
 import { FaExclamation } from "react-icons/fa";
+import NewProject from "./popups/NewProject";
+import EditProject from "./popups/EditProject";
 
 const AllProjects = () => {
   const navigate = useNavigate();
@@ -25,6 +27,7 @@ const AllProjects = () => {
   const [ProjectsData, setProjectsData] = useState([]);
   const [showNewproject, setShowNewproject] = useState(false);
   const [projectid, setprojectid] = useState(null);
+  const [editProjectid, setEditProjectid] = useState(null);
   const [filters, setFilters] = useState({
     priority: "",
     status: "",
@@ -112,7 +115,6 @@ const AllProjects = () => {
   };
 
   const handleViewproject = (projectid) => {
-    console.log(projectid);
     navigate("project/", { state: { projectid } });
   };
 
@@ -221,7 +223,7 @@ const AllProjects = () => {
     hours = hours % 12;
     hours = hours ? hours : 12;
 
-    return `${day}-${month}-${year} ${hours}:${minutes} ${ampm}`;
+    return `${day}-${month}-${year} `;
   };
 
   const getColumnWidths = () => {
@@ -269,13 +271,19 @@ const AllProjects = () => {
       };
     }
   };
+
   const columnWidths = getColumnWidths();
+
+  const handleEditProject = (projectid) => {
+    setEditProjectid(projectid);
+    setShowEditprojectForm(true);
+  };
 
   return (
     <div>
       <Breadcrumbs items={[{ label: "All Projects" }]} />
       <div
-        className="bg-[#ffffff] rounded-lg select-none"
+        className="bg-[#ffffff] rounded-lg select-none "
         style={{
           boxShadow: "0px 2.1px 12px -1.05px rgba(0, 0, 0, 0.25)",
         }}
@@ -315,7 +323,7 @@ const AllProjects = () => {
           <div className="flex items-center justify-between ">
             <div className="flex items-center justify-start gap-x-3">
               <CustomDropdown
-                options={["All", "urgent", "high", "medium", "low"]}
+                options={["All", "Urgent", "High", "Medium", "Low"]}
                 value={filters.priority}
                 onChange={(value) =>
                   handleFilterChange("priority", value === "All" ? "" : value)
@@ -325,10 +333,10 @@ const AllProjects = () => {
               <CustomDropdown
                 options={[
                   "All",
-                  "completed",
-                  "upcoming",
-                  "in progress",
-                  "on hold",
+                  "Completed",
+                  "Upcoming",
+                  "In Progress",
+                  "On Hold",
                 ]}
                 value={filters.status}
                 onChange={(value) =>
@@ -358,6 +366,7 @@ const AllProjects = () => {
               </button>
               {isCalendarVisible && (
                 <CalendarPopup
+                  style={{ top: "105%", right: "-2%" }}
                   selectedDate={filters.createdAfter}
                   onSelectDate={(date) => {
                     handleFilterChange("createdAfter", date);
@@ -508,8 +517,7 @@ const AllProjects = () => {
                   >
                     <button
                       onClick={() => {
-                        setprojectid(project.projectid);
-                        setShowEditprojectForm(true);
+                        handleEditProject(project.projectid);
                       }}
                     >
                       <BiSolidEditAlt className="bg-none border-none cursor-pointer text-[#18636F] text-xs lg:!text-sm xl:!text-lg " />
@@ -656,6 +664,23 @@ const AllProjects = () => {
           </button>
         </div>
       </div>
+      {showNewproject && (
+        <NewProject
+          onClose={() => {
+            fetchProjectsData();
+            setShowNewproject(false);
+          }}
+        />
+      )}
+      {showEditprojectForm && (
+        <EditProject
+          onClose={() => {
+            fetchProjectsData();
+            setShowEditprojectForm(false);
+          }}
+          projectid={editProjectid}
+        />
+      )}
     </div>
   );
 };

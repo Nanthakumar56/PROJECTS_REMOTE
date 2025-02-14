@@ -3,12 +3,36 @@ import { IoClose } from "react-icons/io5";
 import { FaAngleDown } from "react-icons/fa6";
 import { FaCircle } from "react-icons/fa";
 
-const ProNotes = ({ onClose, projectid }) => {
+const EditNotes = ({ onClose, notesid }) => {
   const [noteTitle, setNoteTitle] = useState("");
   const [priority, setPriority] = useState("normal");
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    const fetchNoteDetails = async () => {
+      try {
+        const response = await fetch(
+          `http://localhost:5858/projectNotes/getNoteById?noteId=${notesid}`
+        );
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        // Update state with fetched note details
+        setNoteTitle(data.keypoints || "");
+        setPriority(data.tag || "normal");
+      } catch (error) {
+        console.error("Error fetching note details:", error);
+      }
+    };
+
+    fetchNoteDetails();
+  }, [notesid]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -30,17 +54,24 @@ const ProNotes = ({ onClose, projectid }) => {
   };
 
   const handleSubmit = async () => {
-    const requestBody = {
-      keypoints: noteTitle,
-      tag: priority,
-      projectid: projectid,
-    };
+    const requestBody = {};
+
+    // Add fields to the request body only if they have changed
+    if (noteTitle) {
+      requestBody.keypoints = noteTitle;
+    }
+    if (priority) {
+      requestBody.tag = priority;
+    }
+    if (notesid) {
+      requestBody.notesid = notesid;
+    }
 
     try {
       const response = await fetch(
-        "http://localhost:5858/projectNotes/create",
+        "http://localhost:5858/projectNotes/update",
         {
-          method: "POST",
+          method: "PUT", // Use PUT for update operations
           headers: {
             "Content-Type": "application/json",
           },
@@ -52,19 +83,18 @@ const ProNotes = ({ onClose, projectid }) => {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      // Attempt to parse JSON or handle plain text gracefully
       let data;
       const contentType = response.headers.get("content-type");
       if (contentType && contentType.includes("application/json")) {
-        data = await response.json(); // Parse JSON if available
+        data = await response.json();
       } else {
-        data = await response.text(); // Fallback to plain text
+        data = await response.text();
       }
 
-      console.log("Note created successfully:", data);
+      console.log("Note updated successfully:", data);
       onClose();
     } catch (error) {
-      console.error("Error creating note:", error);
+      console.error("Error updating note:", error);
     }
   };
 
@@ -167,7 +197,7 @@ const ProNotes = ({ onClose, projectid }) => {
               onClick={handleSubmit}
               className="bg-[#18636f] text-white text-[10px] lg:text-xs py-1.5 px-4 rounded-lg"
             >
-              Create
+              Update
             </button>
           </div>
         </div>
@@ -176,4 +206,4 @@ const ProNotes = ({ onClose, projectid }) => {
   );
 };
 
-export default ProNotes;
+export default EditNotes;

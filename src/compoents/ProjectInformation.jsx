@@ -6,8 +6,8 @@ import {
   BiDotsVertical,
   BiSolidEditAlt,
 } from "react-icons/bi";
-import { FaRegDotCircle } from "react-icons/fa";
-import { FaArrowUp, FaArrowDown } from "react-icons/fa6";
+import { FaRegDotCircle, FaUserCircle } from "react-icons/fa";
+import { FaArrowUp, FaArrowDown, FaCircleExclamation } from "react-icons/fa6";
 import { FaExclamation } from "react-icons/fa";
 import { BsClockHistory } from "react-icons/bs";
 import dayjs from "dayjs";
@@ -20,6 +20,7 @@ import Notes from "../assets/images/3123473.jpg";
 import AttachImg from "../assets/images/2924732.jpg";
 import { FaCircleCheck } from "react-icons/fa6";
 import { FaCircleChevronRight } from "react-icons/fa6";
+import { FaCirclePause } from "react-icons/fa6";
 import { FaCircle } from "react-icons/fa";
 import { LuChevronsRight } from "react-icons/lu";
 import Attachment from "../assets/images/fluent-color_document-32.png";
@@ -38,6 +39,10 @@ import FileParser from "./popups/FileParser";
 import ProjectMembers from "./popups/ProjectMembers";
 import ProNotes from "./popups/ProNotes";
 import MileStones from "./popups/MileStones";
+import EditNotes from "./popups/EditNotes";
+import ConfirmationPopup from "./popups/ConfirmationPopup";
+import EditProject from "./popups/EditProject";
+import ProjectMembersData from "./popups/ProjectMembersData";
 
 const ProjectInformation = () => {
   const location = useLocation();
@@ -46,18 +51,38 @@ const ProjectInformation = () => {
   const { projectid } = location.state || {};
   const [projectData, setProjectData] = useState({});
   const [milestonesData, setMilestonesData] = useState([]);
+  const [attachments, setAttachments] = useState([]);
   const [imageSrc, setImageSrc] = useState(null);
+  const [approverImageSrc, setApproverImageSrc] = useState(null);
   const [userId, setUserId] = useState(null);
   const navigate = useNavigate();
   const [isExpanded, setIsExpanded] = useState(false);
-  const [openMenuIndexAtc, setOpenMenuIndexAtc] = useState(null);
   const [openMenuIndex, setOpenMenuIndex] = useState(null);
   const menuRef = useRef(null);
   const menuRefAtc = useRef(null);
+  const [openMenuIndexAtc, setOpenMenuIndexAtc] = useState(null);
   const [showFileImport, setShowFileImport] = useState(false);
   const [showManageMembers, setShowManageMembers] = useState(false);
+  const [showMembers, setShowMembers] = useState(false);
   const [showNewNotes, setShowNewNotes] = useState(false);
   const [showMilestone, setShowMilestone] = useState(false);
+  const [showEditNotes, setShowEditNotes] = useState(false);
+  const [projectNotes, setProjectNotes] = useState([]);
+  const [notesid, setnotesid] = useState("");
+  const [atcid, setatcid] = useState("");
+  const [confirmTitle, setConfirmTitle] = useState("");
+  const [confirmMsg, setConfirmMsg] = useState("");
+  const [showConfirmation, setShowConfirmation] = useState(false);
+  const [confirmDeleteTitle, setConfirmDeleteTitle] = useState("");
+  const [confirmDeleteMsg, setConfirmDeleteMsg] = useState("");
+  const [showConfirmDeleteation, setShowConfirmDeleteation] = useState(false);
+  const completedMilestones = milestonesData.filter(
+    (milestone) => milestone.status === "Completed"
+  ).length;
+
+  const totalMilestones = milestonesData.length;
+  const progressPercentage = (completedMilestones / totalMilestones) * 100;
+  const [showEditprojectForm, setShowEditprojectForm] = useState(false);
 
   const handleClickOutside = (event) => {
     if (menuRef.current && !menuRef.current.contains(event.target)) {
@@ -86,55 +111,49 @@ const ProjectInformation = () => {
     };
   }, []);
 
-  const projectNotes = [
-    {
-      name: "Kickoff Meeting Summary is needed before project kickoff",
-      tag: "important",
-    },
-    {
-      name: "Risk Assessment needs to be done before working on a tasks",
-      tag: "normal",
-    },
-    {
-      name: "Kickoff Meeting Summary is needed before project kickoff",
-      tag: "important",
-    },
-    {
-      name: "Risk Assessment needs to be done before working on a tasks",
-      tag: "normal",
-    },
-  ];
-  const attachments = [
-    {
-      fileid: "ed0004",
-      filename: "Design Specification",
-      filetype: "docx",
-      filesize: "256000",
-    },
-    {
-      fileid: "ed0005",
-      filename: "Team Meeting Notes",
-      filetype: "txt",
-      filesize: "320000",
-    },
-    {
-      fileid: "ed0006",
-      filename: "Budget Report",
-      filetype: "xlsx",
-      filesize: "512000",
-    },
-    {
-      fileid: "ed0007",
-      filename: "Project Timeline",
-      filetype: "pptx",
-      filesize: "1062000",
-    },
-  ];
+  const fetchProjectNotes = async (projectid) => {
+    try {
+      const response = await fetch(
+        `http://localhost:5858/projectNotes/getNotes?projectid=${projectid}`
+      );
+
+      if (!response.ok) {
+        throw new Error(`Error: ${response.statusText}`);
+      }
+
+      const projectNotes = await response.json();
+
+      setProjectNotes(projectNotes);
+    } catch (err) {
+      console.error("Error fetching project notes:", err.message);
+    }
+  };
+
+  const fetchProjectAttachments = async (projectid) => {
+    try {
+      const response = await fetch(
+        `http://localhost:5858/documents/project?projectid=${projectid}`
+      );
+
+      if (response.status === 404) {
+        setAttachments([]);
+        return;
+      }
+
+      const projectattachments = await response.json();
+      setAttachments(projectattachments);
+    } catch (err) {
+      setAttachments([]);
+      console.error("Error fetching project notes:", err.message);
+    }
+  };
+
+  const description = projectData.projectdescription || "";
 
   const truncatedDescription =
-    projectData.projectdescription?.slice(0, 250) + "...";
-  const fullDescription =
-    projectData.projectdescription || "No description available.";
+    description.length > 250 ? description.slice(0, 250) + "..." : description;
+
+  const fullDescription = description || "No description available.";
 
   const handleToggleDescription = () => {
     setIsExpanded((prev) => !prev);
@@ -162,9 +181,9 @@ const ProjectInformation = () => {
 
       setUserId(data.project_manager_id);
 
-      if (data.file) {
-        if (typeof data.file === "string") {
-          setImageSrc(`data:image/jpeg;base64,${data.file}`);
+      if (data.managerFile) {
+        if (typeof data.managerFile === "string") {
+          setImageSrc(`data:image/jpeg;base64,${data.managerFile}`);
         } else {
           const byteArrayToBase64 = (byteArray) => {
             const binary = Array.from(byteArray)
@@ -173,8 +192,23 @@ const ProjectInformation = () => {
             return `data:image/jpeg;base64,${btoa(binary)}`;
           };
 
-          const base64Image = byteArrayToBase64(data.file);
+          const base64Image = byteArrayToBase64(data.managerFile);
           setImageSrc(base64Image);
+        }
+      }
+      if (data.approverFile) {
+        if (typeof data.approverFile === "string") {
+          setApproverImageSrc(`data:image/jpeg;base64,${data.approverFile}`);
+        } else {
+          const byteArrayToBase64 = (byteArray) => {
+            const binary = Array.from(byteArray)
+              .map((b) => String.fromCharCode(b))
+              .join("");
+            return `data:image/jpeg;base64,${btoa(binary)}`;
+          };
+
+          const base64Image = byteArrayToBase64(data.approverFile);
+          setApproverImageSrc(base64Image);
         }
       }
     } catch (err) {
@@ -193,25 +227,90 @@ const ProjectInformation = () => {
   const getFileIcon = (filetype) => {
     const filetypeLower = filetype.toLowerCase();
 
-    if (["jpg", "jpeg", "png", "gif", "bmp", "tiff"].includes(filetypeLower)) {
+    // Check for image MIME types
+    if (filetypeLower.startsWith("image/")) {
       return <BsFileEarmarkImageFill className="text-yellow-600" />;
     }
-    if (["doc", "docx"].includes(filetypeLower)) {
+
+    // Check for document MIME types
+    if (
+      filetypeLower === "application/msword" ||
+      filetypeLower ===
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    ) {
       return <BsFileEarmarkWordFill className="text-blue-600" />;
     }
-    if (["xls", "xlsx", "csv"].includes(filetypeLower)) {
+
+    // Check for spreadsheet MIME types
+    if (
+      filetypeLower === "application/vnd.ms-excel" ||
+      filetypeLower ===
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ||
+      filetypeLower === "text/csv"
+    ) {
       return <BsFileEarmarkXFill className="text-green-600" />;
     }
-    if (["pdf"].includes(filetypeLower)) {
+
+    // Check for PDF MIME type
+    if (filetypeLower === "application/pdf") {
       return <BsFileEarmarkPdfFill className="text-red-600" />;
     }
-    if (["ppt", "pptx"].includes(filetypeLower)) {
+
+    // Check for presentation MIME types
+    if (
+      filetypeLower === "application/vnd.ms-powerpoint" ||
+      filetypeLower ===
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+    ) {
       return <BsFileEarmarkPptFill className="text-orange-600" />;
     }
-    if (["txt"].includes(filetypeLower)) {
+
+    if (filetypeLower === "text/plain") {
       return <BsFileEarmarkTextFill className="text-[#b413ffaa]" />;
     }
+
     return <BsFileEarmarkFill className="text-gray-600" />;
+  };
+
+  const getReadableFileType = (filetype) => {
+    const filetypeLower = filetype.toLowerCase();
+    if (filetypeLower.startsWith("image/")) {
+      return "Image";
+    }
+    if (
+      filetypeLower === "application/msword" ||
+      filetypeLower ===
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    ) {
+      return "DOC";
+    }
+
+    if (
+      filetypeLower === "application/vnd.ms-excel" ||
+      filetypeLower ===
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ||
+      filetypeLower === "text/csv"
+    ) {
+      return "EXCEL";
+    }
+
+    if (filetypeLower === "application/pdf") {
+      return "PDF";
+    }
+
+    if (
+      filetypeLower === "application/vnd.ms-powerpoint" ||
+      filetypeLower ===
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+    ) {
+      return "PPT";
+    }
+
+    if (filetypeLower === "text/plain") {
+      return "TEXT";
+    }
+
+    return "Unknown File Type";
   };
 
   const fetchMilestonesData = async (projectid) => {
@@ -232,10 +331,42 @@ const ProjectInformation = () => {
     }
   };
 
+  const fetchDocument = async (id, filename) => {
+    try {
+      const response = await fetch(
+        `http://localhost:5858/documents/${id}?download=true`
+      );
+
+      if (!response.ok) {
+        throw new Error(`Error: ${response.statusText}`);
+      }
+
+      const contentDisposition = response.headers.get("Content-Disposition");
+      const fileType = response.headers.get("Content-Type");
+
+      const fileNameToUse =
+        filename ||
+        (contentDisposition
+          ? contentDisposition.split('name="')[1].split('"')[0]
+          : "managerFile");
+
+      const fileData = await response.blob();
+
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(fileData);
+      link.download = fileNameToUse;
+      link.click();
+    } catch (err) {
+      console.error("Error fetching document:", err.message);
+    }
+  };
+
   useEffect(() => {
     if (projectid) {
       fetchProjectData();
+      fetchProjectAttachments(projectid);
       fetchMilestonesData(projectid);
+      fetchProjectNotes(projectid);
     }
   }, [projectid]);
 
@@ -384,17 +515,124 @@ const ProjectInformation = () => {
     return "text-gray-500";
   };
 
+  const handleRemoveNote = async (notesid) => {
+    try {
+      const response = await fetch(
+        `http://localhost:5858/projectNotes/delete?noteId=${notesid}`,
+        {
+          method: "DELETE",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      let data;
+      const contentType = response.headers.get("content-type");
+      if (contentType && contentType.includes("application/json")) {
+        data = await response.json();
+      } else {
+        data = await response.text();
+      }
+
+      console.log("Note deleted successfully:", data);
+
+      fetchProjectNotes(projectid);
+    } catch (error) {
+      console.error("Error deleting note:", error);
+    }
+  };
+
+  const handleRemoveDoc = (id) => {
+    setatcid(id);
+    setConfirmTitle("Remove Attachment");
+    setConfirmMsg(
+      "Are you sure do you want to remove attachment of the project?"
+    );
+    setShowConfirmation(true);
+  };
+
+  const hanldeConfirmation = (confirmed) => {
+    if (confirmed) {
+      fetch(`http://localhost:5858/documents/delete?id=${atcid}`, {
+        method: "DELETE",
+      })
+        .then((response) => {
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+
+          const contentType = response.headers.get("content-type");
+          if (contentType && contentType.includes("application/json")) {
+            return response.json();
+          } else {
+            return response.text();
+          }
+        })
+        .then((data) => {
+          if (typeof data === "string") {
+            console.log("Response message:", data);
+          } else {
+            console.log("Milestone deleted successfully:", data);
+          }
+
+          fetchProjectAttachments(projectid);
+          setShowConfirmation(false);
+        })
+        .catch((error) => {
+          console.error("Error deleting milestone:", error);
+        });
+    } else {
+      setShowConfirmation(false);
+    }
+  };
+
+  const handleDeleteProject = () => {
+    setConfirmDeleteTitle("Delete Project");
+    setConfirmDeleteMsg("Are you sure do you want to delete tis project?");
+    setShowConfirmDeleteation(true);
+  };
+
+  const handleDeleteConfirmation = async (confirmed) => {
+    if (confirmed) {
+      try {
+        const response = await fetch(
+          `http://localhost:5858/projects/delete?projectId=${projectid}`,
+          {
+            method: "DELETE",
+          }
+        );
+
+        if (response.ok) {
+          console.log("Project deleted successfully");
+          setShowConfirmDeleteation(false);
+          navigate("/projects");
+        } else {
+          console.error("Failed to delete project");
+        }
+      } catch (error) {
+        console.error("Error deleting project:", error);
+      }
+    } else {
+      setShowConfirmDeleteation(false);
+    }
+  };
+
   return (
     <div>
       {" "}
       <Breadcrumbs
         items={[
           { label: "All Projects", path: "/projects" },
-          { label: "Project Information" },
+          { label: projectData?.projectname },
         ]}
       />
-      <div className="flex gap-2 lg:!gap-3 xl:gap-4 flex-wrap">
-        <div className="w-full xl:!w-[68%] flex flex-wrap gap-4">
+      <div className="flex justify-between flex-wrap">
+        <div className="w-full xl:!w-[69%] flex flex-wrap gap-4">
           <div
             className="w-full bg-white rounded-lg px-6 py-5"
             style={{
@@ -405,58 +643,91 @@ const ProjectInformation = () => {
               <p className="text-sm lg:!text-base font-semibold">
                 {projectData.projectname || "Unnamed Project"}
               </p>
-              <button className="flex items-center group gap-x-1">
+              <button
+                onClick={() => setShowEditprojectForm(true)}
+                className="flex items-center group gap-x-1"
+              >
                 <BiSolidEditAlt className="cursor-pointer text-xs lg:!text-sm group-hover:text-[#18636F]" />
                 <p className="mb-0 cursor-pointer text-xs lg:!text-sm group-hover:text-[#18636F]">
                   Edit Information
                 </p>
               </button>
             </div>
-            <div className="py-1 lg:!pt-4 text-[10px] lg:!text-xs font-medium text-gray-500 flex justify-between items-center">
-              <button
-                className="flex group items-center gap-x-3 cursor-pointer text-left"
-                onClick={() =>
-                  navigate("/admin/manage-users/user", {
-                    state: { userId },
-                  })
-                }
-              >
-                <img
-                  src={imageSrc}
-                  className="h-10 w-10 rounded-full border-2 border-[#18636f]"
-                />
-                <div>
-                  <p>Project Manager</p>
-                  <p className="text-black pt-0.5 text-sm group-hover:text-[#18636f]">
-                    {projectData.project_manager}
-                  </p>
-                </div>
-              </button>
+            <div className="flex items-start gap-x-20">
+              <div className="py-1 lg:!pt-4 text-[10px] lg:!text-xs font-medium text-gray-500 flex justify-between items-center">
+                <button className="flex group items-center gap-x-3 cursor-pointer text-left">
+                  {imageSrc ? (
+                    <img
+                      src={imageSrc}
+                      className="h-10 w-10 rounded-full border-2 border-[#18636f]"
+                    />
+                  ) : (
+                    <FaUserCircle className="h-10 w-10 rounded-full border-2 border-[#18636f] text-gray-400" />
+                  )}
+                  <div>
+                    <p>Project Manager</p>
+                    <p className="text-black pt-0.5 text-xs lg:text-sm group-hover:text-[#18636f]">
+                      {projectData.project_manager}
+                    </p>
+                  </div>
+                </button>
+              </div>
+              <div className="py-1 lg:!pt-4 text-[10px] lg:!text-xs font-medium text-gray-500 flex justify-between items-center">
+                <button className="flex group items-center gap-x-3 cursor-pointer text-left">
+                  {approverImageSrc ? (
+                    <img
+                      src={approverImageSrc}
+                      className="h-10 w-10 rounded-full border-2 border-[#18636f]"
+                    />
+                  ) : (
+                    <FaUserCircle className="h-10 w-10 rounded-full border-2 border-[#18636f] text-gray-400" />
+                  )}
+
+                  <div>
+                    <p>Task Supervisor</p>
+                    <p className="text-black pt-0.5 text-xs lg:text-sm group-hover:text-[#18636f]">
+                      {projectData.approver_name}
+                    </p>
+                  </div>
+                </button>
+              </div>
             </div>
             <div className="py-4 text-xs lg:!text-sm text-gray-500 text-justify">
               {isExpanded ? (
                 <p>
                   {fullDescription}{" "}
-                  <button
-                    className="text-[#18636f] font-medium pl-5"
-                    onClick={handleToggleDescription}
-                  >
-                    Show less
-                  </button>
+                  {description.length > 250 && (
+                    <button
+                      className="text-[#18636f] font-medium pl-5"
+                      onClick={handleToggleDescription}
+                    >
+                      Show less
+                    </button>
+                  )}
                 </p>
               ) : (
                 <p>
-                  {truncatedDescription.slice(0, -3)}{" "}
-                  <button
-                    className="text-[#18636f] font-medium"
-                    onClick={handleToggleDescription}
-                  >
-                    ... Show more
-                  </button>
+                  {truncatedDescription}{" "}
+                  {description.length > 250 && (
+                    <button
+                      className="text-[#18636f] font-medium"
+                      onClick={handleToggleDescription}
+                    >
+                      Show more
+                    </button>
+                  )}
                 </p>
               )}
             </div>
 
+            {projectData.status === "On Hold" && (
+              <div className="py-[2px] my-1 px-2 rounded-md bg-red-200 text-red-500 w-fit text-[9px] lg:text-[11px] flex gap-x-1 items-start">
+                <span className="pt-[3px]">
+                  <FaCircleExclamation />
+                </span>
+                <p>{projectData.reason}</p>
+              </div>
+            )}
             <div>
               <div className="flex md:flex-wrap xl:flex-nowrap gap-x-3 lg:!gap-x-5">
                 <div className="w-full xl:!w-[75%]">
@@ -495,7 +766,10 @@ const ProjectInformation = () => {
                             <td className="px-3">:</td>
                             <td>
                               {" "}
-                              <button className="py-1 lg:!py-2 text-[10px] lg:!text-xs underline text-[#18636f] cursor-pointer">
+                              <p
+                                onClick={() => setShowMembers(true)}
+                                className="py-1 lg:!py-2 text-[10px] lg:!text-xs text-[#18636f] underline cursor-pointer"
+                              >
                                 {projectData.userIds && (
                                   <span>
                                     {projectData.userIds.length}{" "}
@@ -504,7 +778,7 @@ const ProjectInformation = () => {
                                       : "members"}
                                   </span>
                                 )}
-                              </button>
+                              </p>
                             </td>
                           </tr>
                         </tbody>
@@ -537,7 +811,21 @@ const ProjectInformation = () => {
                               {formatDate(projectData.end_date)}
                             </td>
                           </tr>
-                          {projectData.status === "completed" ? (
+                          {projectData.status !== "Completed" &&
+                          projectData.status !== "Upcoming" ? (
+                            <tr>
+                              <td className="py-1 lg:!py-2 text-[10px] lg:!text-xs font-medium text-gray-500">
+                                Started On
+                              </td>
+                              <td className="px-3">:</td>
+                              <td className="py-1 lg:!py-2 text-[10px] lg:!text-xs">
+                                {formatDate(projectData.started_on)}
+                              </td>
+                            </tr>
+                          ) : (
+                            ""
+                          )}
+                          {projectData.status === "Completed" ? (
                             <tr>
                               <td className="py-1 lg:!py-2 text-[10px] lg:!text-xs font-medium text-gray-500">
                                 Completed On
@@ -565,14 +853,24 @@ const ProjectInformation = () => {
                   >
                     Manage members
                   </button>
-                  <button className="py-1 lg:!py-2 text-[10px] lg:!text-xs underline text-[#18636F] cursor-pointer">
+                  <button
+                    onClick={() => handleDeleteProject()}
+                    className="py-1 lg:!py-2 text-[10px] lg:!text-xs underline text-[#18636F] cursor-pointer"
+                  >
                     Delete Project
                   </button>
                 </div>
               </div>
             </div>
             <div className="flex text-[10px] cursor-pointer lg:!text-xs text-[#18636f] underline justify-end">
-              <button className="flex items-center">
+              <button
+                onClick={() =>
+                  navigate("allTasks", {
+                    state: { projectid, projectName: projectData.projectname },
+                  })
+                }
+                className="flex items-center"
+              >
                 <p>View Tasks</p>
                 <LuChevronsRight />
               </button>
@@ -613,25 +911,25 @@ const ProjectInformation = () => {
                       return tagPriority[a.tag] - tagPriority[b.tag];
                     })
                     .map((note, index) => (
-                      <div key={index} className="mb-3">
-                        <div className="flex justify-between items-start py-1">
+                      <div key={index} className="mb-2">
+                        <div className="flex justify-between items-start">
                           <div className="text-gray-500 w-[93%] flex items-start gap-x-2">
                             <p
                               className={`text-[6px] lg:!text-[8px] py-1 px-1 rounded-md w-fit ${
                                 note.tag === "important"
                                   ? " text-red-600"
                                   : note.tag === "moderate"
-                                  ? " text-orange-600"
+                                  ? " text-yellow-500"
                                   : " text-green-600"
                               }`}
                             >
                               <FaCircle />
                             </p>
                             <h3 className="text-[10px] lg:!text-xs">
-                              {note.name}
+                              {note.keypoints}
                             </h3>
                           </div>
-                          <button
+                          <div
                             onClick={() =>
                               openMenuIndex === index
                                 ? handleMenuToggle(null)
@@ -640,9 +938,13 @@ const ProjectInformation = () => {
                             className="relative w-[7%]"
                           >
                             {openMenuIndex === index ? (
-                              <IoCloseOutline className="md:text-sm lg:!text-lg text-mainColor" />
+                              <button>
+                                <IoCloseOutline className="md:text-sm lg:!text-lg text-mainColor" />
+                              </button>
                             ) : (
-                              <CiMenuKebab className="md:text-xs lg:!text-sm text-mainColor" />
+                              <button>
+                                <CiMenuKebab className="md:text-xs lg:!text-sm text-mainColor" />
+                              </button>
                             )}
                             {openMenuIndex === index && (
                               <div
@@ -650,20 +952,23 @@ const ProjectInformation = () => {
                                 className="absolute right-4 top-0 border mt-2 rounded-md shadow-lg z-10 bg-white"
                               >
                                 <button
-                                  onClick={() => {}}
+                                  onClick={() => {
+                                    setnotesid(note.notesid);
+                                    setShowEditNotes(true);
+                                  }}
                                   className="w-full block px-6 py-2 text-[10px] lg:!text-xs rounded hover:bg-gray-200"
                                 >
                                   Edit
                                 </button>
                                 <button
-                                  onClick={() => {}}
+                                  onClick={() => handleRemoveNote(note.notesid)}
                                   className="w-full block px-6 py-2 text-[10px] lg:!text-xs text-red-600 rounded hover:bg-gray-200"
                                 >
                                   Remove
                                 </button>
                               </div>
                             )}
-                          </button>
+                          </div>
                         </div>
                       </div>
                     ))
@@ -707,29 +1012,31 @@ const ProjectInformation = () => {
                   <div>
                     {attachments.map((attachment, index) => (
                       <div
-                        key={attachment.fileid}
+                        key={attachment.id}
                         className="flex items-center gap-x-2 w-full py-3"
                       >
                         <div className="h-8 w-8 flex justify-center items-center bg-gray-100 rounded-full">
                           <span className="text-xl">
-                            {getFileIcon(attachment.filetype)}
+                            {getFileIcon(attachment.type)}
                           </span>
                         </div>
 
                         <div className="flex flex-1 items-center justify-between">
                           <div className="w-[93%]">
                             <h3 className="text-xs lg:!text-[13px]">
-                              {attachment.filename}
+                              {attachment.name.length > 18
+                                ? `${attachment.name.slice(0, 15)}...`
+                                : attachment.name}
                             </h3>
                             <div className="flex items-center justify-start gap-x-2 text-[8px] lg:!text-[10px] text-gray-400">
                               <p className="text-[10px] lg:text-xs">
-                                {attachment.filetype}
+                                {getReadableFileType(attachment.type)}
                               </p>
-                              <p>{formatFileSize(attachment.filesize)}</p>
+                              <p>{formatFileSize(attachment.size)}</p>
                             </div>
                           </div>
 
-                          <button
+                          <div
                             onClick={() =>
                               openMenuIndexAtc === index
                                 ? handleMenuToggleAtc(null)
@@ -738,30 +1045,39 @@ const ProjectInformation = () => {
                             className="relative w-[7%]"
                           >
                             {openMenuIndexAtc === index ? (
-                              <IoCloseOutline className="md:text-sm lg:!text-lg text-mainColor" />
+                              <button>
+                                <IoCloseOutline className="md:text-sm lg:!text-lg text-mainColor" />
+                              </button>
                             ) : (
-                              <CiMenuKebab className="md:text-xs lg:!text-sm text-mainColor" />
+                              <button>
+                                <CiMenuKebab className="md:text-xs lg:!text-sm text-mainColor" />
+                              </button>
                             )}
                             {openMenuIndexAtc === index && (
                               <div
                                 ref={menuRefAtc}
-                                className="absolute right-4 top-0 border mt-2 rounded-md shadow-lg z-10"
+                                className="absolute right-4 top-0 border mt-2 rounded-md shadow-lg z-10 bg-white"
                               >
                                 <button
-                                  onClick={() => {}}
+                                  onClick={() => {
+                                    fetchDocument(
+                                      attachment.id,
+                                      attachment.name
+                                    );
+                                  }}
                                   className="w-full block px-6 py-2 text-[10px] lg:!text-xs rounded hover:bg-gray-200"
                                 >
                                   Download
                                 </button>
                                 <button
-                                  onClick={() => {}}
+                                  onClick={() => handleRemoveDoc(attachment.id)}
                                   className="w-full block px-6 py-2 text-[10px] lg:!text-xs text-red-600 rounded hover:bg-gray-200"
                                 >
                                   Remove
                                 </button>
                               </div>
                             )}
-                          </button>
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -798,11 +1114,11 @@ const ProjectInformation = () => {
                 <div className="bg-slate-200 h-2 rounded-full">
                   <div
                     className="bg-[#1d555e] h-full rounded-full"
-                    style={{ width: `${projectData.progress}%` }}
+                    style={{ width: `${progressPercentage}%` }}
                   ></div>
                 </div>
                 <div className="absolute top-[-18px] right-0 text-xs text-mainColor">
-                  {projectData.progress}%
+                  {Math.round(progressPercentage)}%
                 </div>
               </div>
             </div>
@@ -858,7 +1174,7 @@ const ProjectInformation = () => {
                       Total Tasks
                     </h2>
                     <p className={`text-xs  xl:!text-sm font-semibold mb-0 `}>
-                      49
+                      {projectData.totaltasks}
                     </p>
                   </div>
                   <span className="h-7 w-7 bg-[#18636f] rounded-full flex justify-center items-center">
@@ -878,7 +1194,7 @@ const ProjectInformation = () => {
                       Closed Tasks
                     </h2>
                     <p className={`text-xs  xl:!text-sm font-semibold mb-0 `}>
-                      30
+                      {projectData.closedtasks}
                     </p>
                   </div>
                   <span className="h-7 w-7 bg-[#18636f] rounded-full flex justify-center items-center">
@@ -898,7 +1214,7 @@ const ProjectInformation = () => {
                       Pending Tasks
                     </h2>
                     <p className={`text-xs  xl:!text-sm font-semibold mb-0 `}>
-                      19
+                      {projectData.pendingtasks}
                     </p>
                   </div>
                   <span className="h-7 w-7 bg-[#18636f] rounded-full flex justify-center items-center">
@@ -944,6 +1260,8 @@ const ProjectInformation = () => {
                         <FaCircleCheck className="text-xs lg:!text-sm text-green-600" />
                       ) : step.status === "In Progress" ? (
                         <FaCircleChevronRight className="text-xs lg:!text-sm text-orange-500" />
+                      ) : step.status === "On Hold" ? (
+                        <FaCirclePause className="text-xs lg:!text-sm text-gray-700" />
                       ) : (
                         <FaCircle className="text-xs lg:!text-sm text-gray-400" />
                       )}
@@ -991,21 +1309,82 @@ const ProjectInformation = () => {
         </div>
       </div>
       {showFileImport && (
-        <FileParser closeModal={() => setShowFileImport(false)} />
+        <FileParser
+          closeModal={() => {
+            setShowFileImport(false);
+            fetchProjectAttachments(projectid);
+          }}
+          projectid={projectid}
+        />
       )}
       {showManageMembers && (
-        <ProjectMembers onClose={() => setShowManageMembers(false)} />
+        <ProjectMembers
+          onClose={() => {
+            setShowManageMembers(false);
+            fetchProjectData();
+          }}
+          projectId={projectid}
+          managerid={projectData.project_manager_id}
+          supervisorid={projectData.task_approver}
+        />
+      )}
+      {showMembers && (
+        <ProjectMembersData
+          onClose={() => {
+            setShowMembers(false);
+            fetchProjectData();
+          }}
+          projectId={projectid}
+        />
       )}
       {showNewNotes && (
         <ProNotes
-          onClose={() => setShowNewNotes(false)}
+          onClose={() => {
+            setShowNewNotes(false);
+            fetchProjectNotes(projectid);
+          }}
           projectid={projectid}
         />
       )}
       {showMilestone && (
         <MileStones
-          onClose={() => setShowMilestone(false)}
+          onClose={() => {
+            setShowMilestone(false);
+            fetchMilestonesData(projectid);
+          }}
           projectid={projectid}
+        />
+      )}
+      {showEditNotes && (
+        <EditNotes
+          onClose={() => {
+            setShowEditNotes(false);
+            fetchProjectNotes(projectid);
+          }}
+          notesid={notesid}
+        />
+      )}
+      {showConfirmation && (
+        <ConfirmationPopup
+          title={confirmTitle}
+          message={confirmMsg}
+          onclose={hanldeConfirmation}
+        />
+      )}
+      {showEditprojectForm && (
+        <EditProject
+          onClose={() => {
+            fetchProjectData();
+            setShowEditprojectForm(false);
+          }}
+          projectid={projectid}
+        />
+      )}
+      {showConfirmDeleteation && (
+        <ConfirmationPopup
+          title={confirmDeleteTitle}
+          message={confirmDeleteMsg}
+          onclose={handleDeleteConfirmation}
         />
       )}
     </div>

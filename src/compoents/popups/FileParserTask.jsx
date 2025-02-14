@@ -13,7 +13,7 @@ import {
 import { IoIosCloseCircle } from "react-icons/io";
 import axios from "axios";
 
-const FileParser = ({ closeModal, projectid }) => {
+const FileParserTask = ({ closeModal, taskid }) => {
   const [isDragOver, setIsDragOver] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState([]);
 
@@ -183,7 +183,7 @@ const FileParser = ({ closeModal, projectid }) => {
       });
 
       const response = await axios.post(
-        `http://localhost:5858/documents/upload/${projectid}`,
+        `http://localhost:6262/documents/upload/${taskid}`,
         formData,
         {
           headers: {
@@ -201,7 +201,7 @@ const FileParser = ({ closeModal, projectid }) => {
 
   useEffect(() => {
     const handleOutsideClick = (event) => {
-      if (event.target.id === "fileParserModal") {
+      if (event.target.id === "fileParserTaskModal") {
         closeModal();
       }
     };
@@ -214,7 +214,7 @@ const FileParser = ({ closeModal, projectid }) => {
 
   return (
     <div
-      id="fileParserModal"
+      id="fileParserTaskModal"
       className="fixed inset-0 bg-gray-600 bg-opacity-50 flex justify-center items-center z-50"
     >
       <div className="bg-white rounded-lg p-2 w-72 lg:w-80 xl:!w-96">
@@ -308,4 +308,4 @@ const FileParser = ({ closeModal, projectid }) => {
   );
 };
 
-export default FileParser;
+export default FileParserTask;

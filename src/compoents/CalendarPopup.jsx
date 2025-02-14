@@ -3,9 +3,11 @@ import dayjs from "dayjs";
 import { GrPrevious, GrNext } from "react-icons/gr";
 import { DateCalender, Months } from "./DateCalender";
 
-const CalendarPopup = ({ selectedDate, onSelectDate, onClose }) => {
+const CalendarPopup = ({ selectedDate, onSelectDate, onClose, style }) => {
   const currentDate = dayjs();
-  const [today, setToday] = useState(currentDate);
+  const [today, setToday] = useState(
+    selectedDate ? dayjs(selectedDate) : currentDate
+  );
   const overlayRef = useRef(null);
 
   const days = ["S", "M", "T", "W", "T", "F", "S"];
@@ -22,11 +24,17 @@ const CalendarPopup = ({ selectedDate, onSelectDate, onClose }) => {
     };
   }, [onClose]);
 
+  useEffect(() => {
+    if (selectedDate) {
+      setToday(dayjs(selectedDate));
+    }
+  }, [selectedDate]);
+
   return (
     <div
-      className="absolute bg-white border border-gray-300 rounded-md shadow-lg z-10 mt-1"
-      style={{ top: "100%", right: 0 }}
+      className="absolute bg-white border border-gray-300 rounded-md shadow-lg z-10 mr-1"
       ref={overlayRef}
+      style={style}
     >
       <div className="w-60 h-60 p-3 lg:!w-80 lg:!h-80 lg:!p-4">
         <div className="flex items-center justify-between">

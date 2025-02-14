@@ -2,8 +2,10 @@ import React, { useState, useEffect, useRef } from "react";
 import { IoClose } from "react-icons/io5";
 import { MdOutlinePersonSearch } from "react-icons/md";
 import { FaCircleUser } from "react-icons/fa6";
+import SuccessPopup from "./SuccessPopup";
+import ErrorPopup from "./ErrorPopup";
 
-const ProjectMembers = ({ onClose }) => {
+const ProjectMembers = ({ onClose, projectId, managerid, supervisorid }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -11,9 +13,20 @@ const ProjectMembers = ({ onClose }) => {
   const [showDropdown, setShowDropdown] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const [selectedUsers, setSelectedUsers] = useState([]);
+  const [projectUsers, setProjectUsers] = useState([]);
+  const [createdUsers, setCreatedUsers] = useState([]);
+  const [removedUsers, setRemovedUsers] = useState([]);
   const dropdownRef = useRef(null);
-  const [isSearching, setIsSearching] = useState(false);
   const [hasFetched, setHasFetched] = useState(false);
+  const [showSuccessPopup, setShowSuccessPopup] = useState(false);
+  const [successPopupTitle, setSuccessPopupTitle] = useState(null);
+  const [successPopupMsg, setSuccessPopupMsg] = useState(null);
+  const [showErrorPopup, setShowErrorPopup] = useState(false);
+  const [ErrorPopupTitle, setErrorPopupTitle] = useState(null);
+  const [ErrorPopupMsg, setErrorPopupMsg] = useState(null);
+  const [showErrorMemberPopup, setShowErrorMemberPopup] = useState(false);
+  const [ErrorMemberPopupTitle, setErrorMemberPopupTitle] = useState(null);
+  const [ErrorMemberPopupMsg, setErrorMemberPopupMsg] = useState(null);
 
   const handleSearch = (event) => {
     setSearchTerm(event.target.value);
@@ -21,19 +34,101 @@ const ProjectMembers = ({ onClose }) => {
     setSelectedIndex(-1);
   };
 
+  const fetchProjectUsers = async (projectId) => {
+    try {
+      const response = await fetch(
+        `http://localhost:5858/projects/users?projectid=${projectId}`
+      );
+      if (!response.ok) {
+        throw new Error("Failed to fetch project users");
+      }
+      const data = await response.json();
+      setProjectUsers(data);
+      fetchUsers(data);
+    } catch (error) {
+      console.error("Error fetching project users:", error);
+    }
+  };
+
+  useEffect(() => {
+    fetchProjectUsers(projectId);
+  }, [projectId]);
+
+  const fetchUsers = async (projectUsers) => {
+    setLoading(true);
+    setError("");
+    setHasFetched(false);
+
+    try {
+      if (!projectUsers) {
+        console.error("No project users provided.");
+        setError("No project users provided.");
+        return;
+      }
+
+      let userIds = [];
+
+      if (Array.isArray(projectUsers)) {
+        userIds = projectUsers;
+      } else if (typeof projectUsers === "string") {
+        userIds = projectUsers.split(",");
+      } else {
+        console.error("ProjectUsers is not a string or array.");
+        setError("Invalid project users format.");
+        return;
+      }
+
+      const response = await fetch(
+        "http://localhost:5656/users/getProjectUsersFilled",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(userIds),
+        }
+      );
+
+      if (response.ok) {
+        const contentType = response.headers.get("Content-Type");
+
+        if (response.status === 204) {
+          setUsers([]);
+          console.log("No content returned from server.");
+          return;
+        }
+
+        if (contentType && contentType.includes("application/json")) {
+          const data = await response.json();
+          setSelectedUsers(data);
+        } else {
+          console.error("Unexpected response type:", contentType);
+          setError("Unexpected response type from server.");
+        }
+      } else {
+        setError("Failed to fetch users.");
+      }
+    } catch (err) {
+      console.error("Error:", err);
+      setError("No users found.");
+    } finally {
+      setLoading(false);
+      setHasFetched(true);
+    }
+  };
+
   useEffect(() => {
     const fetchUsers = async () => {
       if (searchTerm.trim() === "") {
         setUsers([]);
-        setHasFetched(false); // Reset fetch status for empty input
+        setHasFetched(false);
         return;
       }
 
       setLoading(true);
       setError("");
-      setHasFetched(false); // Reset fetch status during a new search
+      setHasFetched(false);
       try {
-        // Extract userIds from selectedUsers
         const selectedUserIds = selectedUsers.map((user) => user.userid);
 
         const response = await fetch(
@@ -53,13 +148,13 @@ const ProjectMembers = ({ onClose }) => {
         setError("No users found.");
       } finally {
         setLoading(false);
-        setHasFetched(true); // Mark fetch as complete
+        setHasFetched(true);
       }
     };
 
     const debounceFetch = setTimeout(fetchUsers, 300);
     return () => clearTimeout(debounceFetch);
-  }, [searchTerm, selectedUsers]); // Added selectedUsers as dependency
+  }, [searchTerm, selectedUsers]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -86,17 +181,68 @@ const ProjectMembers = ({ onClose }) => {
       handleUserSelect(users[selectedIndex]);
     }
   };
-
   const handleUserSelect = (user) => {
     if (!selectedUsers.some((u) => u.userid === user.userid)) {
       setSelectedUsers((prev) => [...prev, user]);
+      setCreatedUsers((prev) => [...prev, user.userid]); // Track newly added user
     }
     setSearchTerm("");
     setShowDropdown(false);
   };
 
   const handleRemoveUser = (userid) => {
-    setSelectedUsers((prev) => prev.filter((user) => user.userid !== userid));
+    if (userid === managerid || userid === supervisorid) {
+      setErrorMemberPopupTitle("Remove Member");
+      setErrorMemberPopupMsg("You cannot remove this member for this project!");
+      setShowErrorMemberPopup(true);
+    } else {
+      setSelectedUsers((prev) => {
+        const updatedSelected = prev.filter((user) => user.userid !== userid);
+
+        if (!createdUsers.includes(userid)) {
+          setRemovedUsers((prevRemoved) => [...prevRemoved, userid]);
+        } else {
+          setCreatedUsers((prev) => prev.filter((id) => id !== userid));
+        }
+
+        return updatedSelected;
+      });
+    }
+  };
+
+  const handleUpdate = async () => {
+    const payload = {
+      createUser: createdUsers,
+      removeUser: removedUsers,
+    };
+
+    try {
+      const response = await fetch(
+        `http://localhost:5858/projects/update-members?projectid=${projectId}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+        }
+      );
+
+      if (!response.ok) {
+        setErrorPopupTitle("Project Members");
+        setErrorPopupMsg("OOPS! There was a error updating project members.");
+        setShowErrorPopup(true);
+      }
+
+      const data = await response.json();
+      setSuccessPopupTitle("Project Members");
+      setSuccessPopupMsg("The project members have been successfully updated.");
+      setShowSuccessPopup(true);
+      setCreatedUsers([]);
+      setRemovedUsers([]);
+    } catch (error) {
+      console.error("Error updating project members:", error);
+    }
   };
 
   return (
@@ -218,12 +364,43 @@ const ProjectMembers = ({ onClose }) => {
             </div>
           </div>
           <div className="mt-4 text-xs flex justify-end lg:right-6">
-            <button className="py-1 px-3 bg-[#18636f] text-white rounded-md">
+            <button
+              className="py-1 px-3 bg-[#18636f] text-white rounded-md"
+              onClick={handleUpdate}
+            >
               Update
             </button>
           </div>
         </div>
       </div>
+      {showSuccessPopup && (
+        <SuccessPopup
+          title={successPopupTitle}
+          message={successPopupMsg}
+          onclose={() => {
+            setShowSuccessPopup(false);
+            onClose();
+          }}
+        />
+      )}
+      {showErrorPopup && (
+        <ErrorPopup
+          title={ErrorPopupTitle}
+          message={ErrorPopupMsg}
+          onclose={() => {
+            setShowErrorPopup(false);
+          }}
+        />
+      )}
+      {showErrorMemberPopup && (
+        <ErrorPopup
+          title={ErrorMemberPopupTitle}
+          message={ErrorMemberPopupMsg}
+          onclose={() => {
+            setShowErrorMemberPopup(false);
+          }}
+        />
+      )}
     </div>
   );
 };
